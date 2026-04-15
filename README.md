@@ -4,6 +4,13 @@
 
 A native TN3270/TN3270E terminal emulator for Visual Studio Code. Connect to IBM z/OS, CICS, TSO, and ISPF directly from your editor.
 
+## Screenshots
+
+> Screenshots will be added once the Webview renderer is complete.
+
+<!-- ![TSO Login Screen](media/screenshots/tso-login.png) -->
+<!-- ![ISPF Panel](media/screenshots/ispf-panel.png) -->
+
 ## Features
 
 - **Native TN3270/TN3270E** — Full protocol support with TLS 1.2/1.3
