@@ -45,6 +45,7 @@ jobs:
 
       - name: Publish to Open VSX Registry
         if: ${{ env.OVSX_PAT != '' }}
+        continue-on-error: true
         run: npx --yes ovsx publish vscode-tn3270.vsix -p "$OVSX_PAT"
         env:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
