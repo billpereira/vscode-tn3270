@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- Background: dark terminal -->
+  <rect width="128" height="128" rx="16" fill="#1e1e1e"/>
+  <!-- Screen bezel -->
+  <rect x="8" y="8" width="112" height="96" rx="8" fill="#0a0a0a" stroke="#333" stroke-width="1.5"/>
+  <!-- Screen glow -->
+  <rect x="14" y="14" width="100" height="84" rx="4" fill="#001a00"/>
+  <!-- Terminal text lines (green phosphor) -->
+  <text x="20" y="34" font-family="monospace" font-size="11" fill="#33ff33" opacity="0.9">USERID ==&gt;</text>
+  <text x="20" y="48" font-family="monospace" font-size="11" fill="#33ff33" opacity="0.7">PASSWORD ==&gt;</text>
+  <text x="20" y="66" font-family="monospace" font-size="11" fill="#33ff33" opacity="0.5">ENTER LOGON</text>
+  <text x="20" y="80" font-family="monospace" font-size="11" fill="#33ff33" opacity="0.4">PARAMETERS</text>
+  <!-- Cursor block -->
+  <rect x="92" y="26" width="7" height="11" fill="#33ff33" opacity="0.8">
+    <animate attributeName="opacity" values="0.8;0.2;0.8" dur="1.2s" repeatCount="indefinite"/>
+  </rect>
+  <!-- Bottom bar: VS Code accent -->
+  <rect x="8" y="108" width="112" height="14" rx="4" fill="#007acc"/>
+  <text x="64" y="118" font-family="sans-serif" font-size="8" fill="white" text-anchor="middle" font-weight="bold">TN3270</text>
+</svg>

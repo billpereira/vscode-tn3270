@@ -5,15 +5,32 @@
   "version": "0.0.1",
   "publisher": "billpereira",
   "license": "MIT",
+  "icon": "media/icons/icon.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/billpereira/vscode-tn3270"
+  },
+  "homepage": "https://github.com/billpereira/vscode-tn3270#readme",
+  "bugs": {
+    "url": "https://github.com/billpereira/vscode-tn3270/issues"
   },
   "engines": {
     "vscode": "^1.85.0"
   },
   "categories": [
-    "Other"
+    "Other",
+    "Programming Languages"
+  ],
+  "galleryBanner": {
+    "color": "#1e1e1e",
+    "theme": "dark"
+  },
+  "badges": [
+    {
+      "url": "https://github.com/billpereira/vscode-tn3270/actions/workflows/ci.yml/badge.svg",
+      "href": "https://github.com/billpereira/vscode-tn3270/actions/workflows/ci.yml",
+      "description": "CI Status"
+    }
   ],
   "keywords": [
     "3270",
