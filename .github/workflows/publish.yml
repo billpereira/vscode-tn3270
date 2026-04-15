@@ -3,6 +3,7 @@ name: Publish Extension
 on:
   release:
     types: [published]
+  workflow_dispatch:
 
 jobs:
   test:
@@ -29,8 +30,10 @@ jobs:
 
       - name: Set version from tag
         run: |
-          TAG="${GITHUB_REF#refs/tags/v}"
-          npm version "$TAG" --no-git-tag-version
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            TAG="${GITHUB_REF#refs/tags/v}"
+            npm version "$TAG" --no-git-tag-version
+          fi
 
       - name: Package extension
         run: npx vsce package -o vscode-tn3270.vsix
@@ -47,6 +50,7 @@ jobs:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
 
       - name: Upload VSIX to release
+        if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
           files: vscode-tn3270.vsix
