@@ -1,0 +1,155 @@
+{
+  "name": "vscode-tn3270",
+  "displayName": "TN3270 Terminal Emulator",
+  "description": "A native TN3270/TN3270E terminal emulator for Visual Studio Code — connect to IBM z/OS, CICS, TSO, and ISPF without leaving your editor.",
+  "version": "0.0.1",
+  "publisher": "billpereira",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/billpereira/vscode-tn3270"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "3270",
+    "tn3270",
+    "mainframe",
+    "zos",
+    "ibm",
+    "terminal",
+    "emulator",
+    "cobol",
+    "ispf",
+    "cics",
+    "tso"
+  ],
+  "activationEvents": [
+    "onCommand:vscode-tn3270.openSession",
+    "onCommand:vscode-tn3270.manageProfiles"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "vscode-tn3270.openSession",
+        "title": "TN3270: Open Session",
+        "category": "TN3270"
+      },
+      {
+        "command": "vscode-tn3270.manageProfiles",
+        "title": "TN3270: Manage Session Profiles",
+        "category": "TN3270"
+      },
+      {
+        "command": "vscode-tn3270.disconnect",
+        "title": "TN3270: Disconnect Session",
+        "category": "TN3270"
+      }
+    ],
+    "configuration": {
+      "title": "TN3270",
+      "properties": {
+        "tn3270.profiles": {
+          "type": "array",
+          "default": [],
+          "description": "TN3270 session profiles",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Profile display name"
+              },
+              "host": {
+                "type": "string",
+                "description": "Hostname or IP address"
+              },
+              "port": {
+                "type": "number",
+                "default": 23,
+                "description": "Port number"
+              },
+              "model": {
+                "type": "string",
+                "default": "IBM-3279-2-E",
+                "enum": [
+                  "IBM-3278-2",
+                  "IBM-3278-3",
+                  "IBM-3278-4",
+                  "IBM-3278-5",
+                  "IBM-3279-2-E",
+                  "IBM-3279-3-E",
+                  "IBM-3279-4-E",
+                  "IBM-3279-5-E"
+                ],
+                "description": "Terminal model"
+              },
+              "tls": {
+                "type": "boolean",
+                "default": false,
+                "description": "Enable TLS encryption"
+              },
+              "tlsVerify": {
+                "type": "boolean",
+                "default": true,
+                "description": "Verify TLS certificates"
+              },
+              "luName": {
+                "type": "string",
+                "default": "",
+                "description": "LU name (optional)"
+              },
+              "codePage": {
+                "type": "string",
+                "default": "CP037",
+                "description": "EBCDIC code page"
+              },
+              "autoReconnect": {
+                "type": "boolean",
+                "default": false,
+                "description": "Auto-reconnect on disconnect"
+              }
+            }
+          }
+        },
+        "tn3270.defaultFont": {
+          "type": "string",
+          "default": "IBM 3270",
+          "description": "Default font for the terminal display"
+        },
+        "tn3270.cursorStyle": {
+          "type": "string",
+          "default": "block",
+          "enum": ["block", "underline"],
+          "description": "Cursor style"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "@types/jest": "^29.5.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.56.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.0",
+    "typescript": "^5.3.0",
+    "@vscode/vsce": "^2.22.0"
+  }
+}
