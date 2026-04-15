@@ -1,10 +1,35 @@
-import * as vscode from 'vscode';
+/**
+ * Extension entry point.
+ *
+ * Activates on command invocation, initializes the SessionManager,
+ * registers commands, and listens for theme changes.
+ */
 
-export function activate(_context: vscode.ExtensionContext) {
-  // TODO: Register commands (openSession, manageProfiles, disconnect)
-  // TODO: Initialize session manager
+import * as vscode from 'vscode';
+import { SessionManager } from './session/session-manager';
+import { registerCommands } from './commands/commands';
+
+
+let sessionManager: SessionManager | undefined;
+
+export function activate(context: vscode.ExtensionContext) {
+  sessionManager = new SessionManager(context.extensionUri);
+
+  // Register commands
+  const commandDisposables = registerCommands(context, sessionManager);
+  context.subscriptions.push(...commandDisposables);
+
+  // Theme changes are handled by individual session panels via VS Code CSS variables
+
+  // Clean up on deactivation
+  context.subscriptions.push({
+    dispose: () => {
+      sessionManager?.disposeAll();
+    },
+  });
 }
 
 export function deactivate() {
-  // TODO: Clean up all active sessions
+  sessionManager?.disposeAll();
+  sessionManager = undefined;
 }
