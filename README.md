@@ -1,5 +1,7 @@
 # vscode-tn3270
 
+[![CI](https://github.com/billpereira/vscode-tn3270/actions/workflows/ci.yml/badge.svg)](https://github.com/billpereira/vscode-tn3270/actions/workflows/ci.yml)
+
 A native TN3270/TN3270E terminal emulator for Visual Studio Code. Connect to IBM z/OS, CICS, TSO, and ISPF directly from your editor.
 
 ## Features
