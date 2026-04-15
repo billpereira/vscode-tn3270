@@ -139,6 +139,10 @@ export class Session {
       this.connection.send(data);
     });
 
+    this.telnet.on('negotiated', () => {
+      // Negotiation complete — ready for 3270 datastream
+    });
+
     // Telnet records → datastream processing
     this.telnet.on('record', (record: Buffer) => {
       this.processHostRecord(record);

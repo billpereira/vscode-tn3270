@@ -228,8 +228,9 @@ export class TelnetNegotiator extends EventEmitter {
     return (
       option === TelnetOption.BINARY ||
       option === TelnetOption.TERMINAL_TYPE ||
-      option === TelnetOption.EOR ||
-      option === TelnetOption.TN3270E
+      option === TelnetOption.EOR
+      // TN3270E negotiation is not yet fully implemented — refuse for now
+      // so the host falls back to basic TN3270 mode.
     );
   }
 

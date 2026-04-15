@@ -22,4 +22,21 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run compile
-      - run: npm test -- --passWithNoTests
+      - run: npm test
+
+  package:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - name: Package VSIX
+        run: npx vsce package -o vscode-tn3270.vsix
+      - name: Upload VSIX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vscode-tn3270-vsix
+          path: vscode-tn3270.vsix

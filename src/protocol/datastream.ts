@@ -14,8 +14,15 @@ import { isOrder, processOrder, encodeAddress } from './orders';
 
 // ── Command codes ───────────────────────────────────────────────────
 
-/** 3270 Write command codes (first byte of the record). */
+/**
+ * 3270 Write command codes (first byte of the record).
+ *
+ * Two encoding families exist: SNA (used in TN3270E) and non-SNA / CCW
+ * (used in basic TN3270). We must handle both because the host's choice
+ * depends on the negotiation outcome.
+ */
 export const WriteCommand = {
+  // SNA command codes
   W:    0xF1,  // Write
   EW:   0xF5,  // Erase/Write
   EWA:  0x7E,  // Erase/Write Alternate
@@ -24,6 +31,15 @@ export const WriteCommand = {
   RMA:  0x6E,  // Read Modified All
   EAU:  0x6F,  // Erase All Unprotected
   WSF:  0xF3,  // Write Structured Field
+  // Non-SNA (CCW) command codes
+  CCW_W:    0x01,  // Write
+  CCW_EW:   0x05,  // Erase/Write
+  CCW_EWA:  0x0D,  // Erase/Write Alternate
+  CCW_RB:   0x02,  // Read Buffer
+  CCW_RM:   0x06,  // Read Modified
+  CCW_RMA:  0x0E,  // Read Modified All
+  CCW_EAU:  0x0F,  // Erase All Unprotected
+  CCW_WSF:  0x11,  // Write Structured Field
 } as const;
 
 /** WCC (Write Control Character) bit flags. */
@@ -88,26 +104,33 @@ export function processRecord(record: Buffer, screen: ScreenBuffer): DatastreamR
 
   switch (command) {
     case WriteCommand.W:
+    case WriteCommand.CCW_W:
       processWrite(record, screen, result);
       break;
     case WriteCommand.EW:
+    case WriteCommand.CCW_EW:
       screen.eraseWrite();
       processWrite(record, screen, result);
       break;
     case WriteCommand.EWA:
+    case WriteCommand.CCW_EWA:
       screen.eraseWriteAlternate();
       processWrite(record, screen, result);
       break;
     case WriteCommand.RB:
+    case WriteCommand.CCW_RB:
       result.actions.push(DatastreamAction.ReadBuffer);
       break;
     case WriteCommand.RM:
+    case WriteCommand.CCW_RM:
       result.actions.push(DatastreamAction.ReadModified);
       break;
     case WriteCommand.RMA:
+    case WriteCommand.CCW_RMA:
       result.actions.push(DatastreamAction.ReadModifiedAll);
       break;
     case WriteCommand.EAU:
+    case WriteCommand.CCW_EAU:
       screen.eraseAllUnprotected();
       result.actions.push(DatastreamAction.EraseAllUnprotected);
       break;
@@ -192,18 +215,28 @@ export function buildReadModifiedResponse(
   // For other AIDs, include modified field data
   const modified = screen.getModifiedFields();
   for (const field of modified) {
-    // SBA order + field address
-    parts.push(0x11); // SBA
-    const [fb1, fb2] = encodeAddress((field.address + 1) % screen.size);
-    parts.push(fb1, fb2);
 
-    // Field data (skip trailing nulls)
+    // Skip leading nulls and trailing nulls
+    let start = 0;
+    while (start < field.data.length && field.data[start] === 0x00) {
+      start++;
+    }
     let end = field.data.length;
-    while (end > 0 && field.data[end - 1] === 0x00) {
+    while (end > start && field.data[end - 1] === 0x00) {
       end--;
     }
-    for (let i = 0; i < end; i++) {
-      parts.push(field.data[i]);
+
+    // Only include field if there is non-null data
+    if (start < end) {
+      // SBA order + adjusted address (skip past leading nulls)
+      parts.push(0x11); // SBA
+      const dataAddr = (field.address + 1 + start) % screen.size;
+      const [fb1, fb2] = encodeAddress(dataAddr);
+      parts.push(fb1, fb2);
+
+      for (let i = start; i < end; i++) {
+        parts.push(field.data[i]);
+      }
     }
   }
 
