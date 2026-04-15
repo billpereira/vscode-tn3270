@@ -5,6 +5,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webviewCspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; font-src ${webviewCspSource};">
   <title>TN3270</title>
+  <style>
+    @font-face {
+      font-family: '3270';
+      src: url('${fontRegularWoffUri}') format('woff'),
+           url('${fontRegularTtfUri}') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+      font-display: block;
+    }
+    @font-face {
+      font-family: '3270 SemiCondensed';
+      src: url('${fontSemiCondensedWoffUri}') format('woff');
+      font-weight: normal;
+      font-style: normal;
+      font-display: block;
+    }
+    #terminal-container {
+      font-family: '3270', monospace;
+    }
+  </style>
 </head>
 <body>
   <div id="terminal-container"></div>
