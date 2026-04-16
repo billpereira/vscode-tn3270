@@ -8,6 +8,7 @@
 import * as vscode from 'vscode';
 import { SessionManager } from './session/session-manager';
 import { registerCommands } from './commands/commands';
+import { dispose as disposeLogger } from './session/logger';
 
 
 let sessionManager: SessionManager | undefined;
@@ -32,4 +33,5 @@ export function activate(context: vscode.ExtensionContext) {
 export function deactivate() {
   sessionManager?.disposeAll();
   sessionManager = undefined;
+  disposeLogger();
 }

@@ -53,8 +53,12 @@ export interface TelnetEvents {
   send: (data: Buffer) => void;
   /** Negotiation is complete — all required options agreed. */
   negotiated: () => void;
+  /** TN3270E sub-negotiation completed. */
+  tn3270eNegotiated: () => void;
   /** An error during negotiation. */
   error: (err: Error) => void;
+  /** Debug log message. */
+  debug: (message: string) => void;
 }
 
 // ── Parser states ───────────────────────────────────────────────────
@@ -198,9 +202,26 @@ export class TelnetNegotiator extends EventEmitter {
     }
   }
 
+  /** Option code to name for debug output. */
+  private optionName(option: number): string {
+    const names: Record<number, string> = {
+      0x00: 'BINARY', 0x18: 'TERMINAL-TYPE', 0x19: 'EOR', 0x28: 'TN3270E',
+    };
+    return names[option] ?? `0x${option.toString(16)}`;
+  }
+
+  /** Command code to name for debug output. */
+  private commandName(command: number): string {
+    const names: Record<number, string> = {
+      0xFD: 'DO', 0xFE: 'DONT', 0xFB: 'WILL', 0xFC: 'WONT',
+    };
+    return names[command] ?? `0x${command.toString(16)}`;
+  }
+
   /** Handle DO/DONT/WILL/WONT commands. */
   private handleCommand(command: number, option: number): void {
     const state = this.getOption(option);
+    this.emit('debug', `Recv ${this.commandName(command)} ${this.optionName(option)}`);
 
     switch (command) {
       case TelnetCommand.DO:
@@ -208,6 +229,7 @@ export class TelnetNegotiator extends EventEmitter {
         if (this.shouldAcceptDo(option)) {
           if (!state.local) {
             state.local = true;
+            this.emit('debug', `Send WILL ${this.optionName(option)}`);
             this.sendCommand(TelnetCommand.WILL, option);
 
             // TN3270E: after WILL, initiate device-type negotiation
@@ -220,12 +242,14 @@ export class TelnetNegotiator extends EventEmitter {
             }
           }
         } else {
+          this.emit('debug', `Send WONT ${this.optionName(option)} (refused)`);
           this.sendCommand(TelnetCommand.WONT, option);
         }
         break;
 
       case TelnetCommand.DONT:
         state.local = false;
+        this.emit('debug', `Send WONT ${this.optionName(option)}`);
         this.sendCommand(TelnetCommand.WONT, option);
         break;
 
@@ -234,9 +258,11 @@ export class TelnetNegotiator extends EventEmitter {
         if (this.shouldAcceptWill(option)) {
           if (!state.remote) {
             state.remote = true;
+            this.emit('debug', `Send DO ${this.optionName(option)}`);
             this.sendCommand(TelnetCommand.DO, option);
           }
         } else {
+          this.emit('debug', `Send DONT ${this.optionName(option)} (refused)`);
           this.sendCommand(TelnetCommand.DONT, option);
         }
         break;
@@ -283,17 +309,20 @@ export class TelnetNegotiator extends EventEmitter {
 
   /** Handle TN3270E sub-negotiation. */
   private handleTN3270ESubNeg(): void {
+    this.emit('debug', `TN3270E sub-neg received (${this._subNegBuffer.length} bytes), state: ${TN3270ENegState[this._tn3270e!.state]}`);
     const response = this._tn3270e!.processSubNeg(this._subNegBuffer);
     if (response) {
       this.emit('send', response);
     }
+
+    this.emit('debug', `TN3270E state after: ${TN3270ENegState[this._tn3270e!.state]}`);
 
     // Check if TN3270E negotiation completed or failed
     if (this._tn3270e!.state === TN3270ENegState.Complete) {
       this.emit('tn3270eNegotiated');
       this.checkNegotiationComplete();
     } else if (this._tn3270e!.state === TN3270ENegState.Failed) {
-      // TN3270E failed — host should fall back to basic TN3270
+      this.emit('debug', 'TN3270E negotiation failed — falling back to basic TN3270');
       this._tn3270e = null;
     }
   }

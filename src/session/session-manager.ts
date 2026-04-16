@@ -27,6 +27,7 @@ import {
 } from '../protocol/tn3270e';
 import { getCodePage, encodeChar } from '../protocol/ebcdic';
 import type { WebviewToHostMessage, KeyPressMessage } from '../webview/messages';
+import { log, logHex } from './logger';
 
 // ── Session ───────────────────────────────────────────────────────
 
@@ -94,6 +95,7 @@ export class Session {
       tlsVerify: this.profile.tlsVerify,
     };
 
+    log('CONN', `Connecting to ${config.host}:${config.port} (TLS: ${config.tls})`);
     this.connection.connect(config);
     this.updatePanelTitle();
   }
@@ -126,6 +128,7 @@ export class Session {
     });
 
     this.connection.on('stateChange', (state: ConnectionState) => {
+      log('CONN', `State: ${state} (session: ${this.profile.name})`);
       this._panel?.postMessage({
         type: 'connectionState',
         state,
@@ -138,26 +141,38 @@ export class Session {
       }
     });
 
-    this.connection.on('error', (_err: Error) => {
-      // Error state is already communicated via stateChange
+    this.connection.on('error', (err: Error) => {
+      log('CONN', `Error: ${err.message}`);
     });
 
     // Telnet negotiation responses → send to host
     this.telnet.on('send', (data: Buffer) => {
+      logHex('TELNET', 'Send', data);
       this.connection.send(data);
     });
 
     this.telnet.on('negotiated', () => {
-      // Negotiation complete — ready for 3270 datastream
+      log('TELNET', `Negotiation complete (TN3270E: ${this.telnet.isTN3270E})`);
+    });
+
+    this.telnet.on('debug', (message: string) => {
+      log('TELNET', message);
+    });
+
+    this.telnet.on('tn3270eNegotiated', () => {
+      const neg = this.telnet.tn3270eNegotiator;
+      log('TN3270E', `Negotiated — device: ${neg?.deviceType}, LU: ${neg?.luName || '(none)'}, functions: [${neg?.agreedFunctions}]`);
     });
 
     // Telnet records → datastream processing
     this.telnet.on('record', (record: Buffer) => {
+      logHex('RECORD', `Recv (TN3270E: ${this.telnet.isTN3270E})`, record);
       this.processHostRecord(record);
     });
 
     // Keyboard → send response to host
     this.keyboard.on('send', (data: Buffer) => {
+      logHex('KEYBOARD', 'AID response', data);
       let payload = data;
 
       // TN3270E mode: prepend 5-byte header
@@ -206,7 +221,17 @@ export class Session {
     // TN3270E mode: strip the 5-byte header
     if (this.telnet.isTN3270E) {
       const parsed = stripHeader(record);
-      if (!parsed) return;
+      if (!parsed) {
+        log('TN3270E', 'Record too short to contain header, skipping');
+        return;
+      }
+
+      const typeNames: Record<number, string> = {
+        0x00: 'DATA_3270', 0x01: 'DATA_SCS', 0x02: 'DATA_RESPONSE',
+        0x03: 'DATA_BIND', 0x04: 'DATA_UNBIND', 0x05: 'DATA_NVT',
+        0x06: 'DATA_REQUEST', 0x07: 'DATA_SSCP_LU',
+      };
+      log('TN3270E', `Header: type=${typeNames[parsed.header.dataType] ?? parsed.header.dataType} req=${parsed.header.requestFlag} resp=${parsed.header.responseFlag} seq=${parsed.header.seqNumber} payload=${parsed.payload.length}b`);
 
       if (parsed.header.dataType === TN3270EDataType.DATA_SSCP_LU) {
         // SSCP-LU data: raw EBCDIC text (login/USS screens).
@@ -237,6 +262,7 @@ export class Session {
     }
 
     const result = processRecord(payload, this.screen);
+    log('RECORD', `Processed: actions=[${result.actions.map(a => DatastreamAction[a]).join(',')}] wcc=0x${result.wcc.toString(16)} restoreKb=${!!(result.wcc & WCC.RESTORE_KB)}`);
 
     for (const action of result.actions) {
       switch (action) {
