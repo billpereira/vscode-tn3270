@@ -110,6 +110,28 @@ export class ScreenBuffer {
     Object.assign(this._buffer[this.wrap(address)].extended, extended);
   }
 
+  /**
+   * Apply the containing field's extended colors to a cell.
+   * Cell-level SA attributes take precedence over field-level SFE attributes.
+   */
+  applyFieldColors(address: number): void {
+    const pos = this.wrap(address);
+    const cell = this._buffer[pos];
+    const field = this.getFieldAt(pos);
+    if (!field) return;
+
+    // Field colors apply as defaults — only set if cell has DEFAULT (0x00)
+    if (cell.extended.foreground === 0x00 && field.extended.foreground !== 0x00) {
+      cell.extended.foreground = field.extended.foreground;
+    }
+    if (cell.extended.background === 0x00 && field.extended.background !== 0x00) {
+      cell.extended.background = field.extended.background;
+    }
+    if (cell.extended.highlight === 0x00 && field.extended.highlight !== 0x00) {
+      cell.extended.highlight = field.extended.highlight;
+    }
+  }
+
   // ── Field queries ────────────────────────────────────────────────
 
   /** Find the field that contains the given buffer address. */
@@ -231,6 +253,7 @@ export class ScreenBuffer {
     while (pos !== endPos) {
       if (this._buffer[pos].fieldAttribute === -1) {
         this._buffer[pos].char = char;
+        this.applyFieldColors(pos);
       }
       pos = this.wrap(pos + 1);
     }

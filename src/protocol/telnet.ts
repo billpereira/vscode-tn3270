@@ -7,6 +7,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { TN3270ENegotiator, TN3270ENegState } from './tn3270e';
 
 // ── Telnet constants ────────────────────────────────────────────────
 
@@ -81,9 +82,16 @@ export class TelnetNegotiator extends EventEmitter {
   /** Whether negotiation is complete. */
   private _negotiated: boolean = false;
 
-  constructor(terminalType: string = 'IBM-3279-2-E') {
+  /** TN3270E negotiator — active when host agrees to TN3270E. */
+  private _tn3270e: TN3270ENegotiator | null = null;
+
+  /** LU name for TN3270E negotiation. */
+  private _luName: string;
+
+  constructor(terminalType: string = 'IBM-3279-2-E', luName: string = '') {
     super();
     this._terminalType = terminalType;
+    this._luName = luName;
   }
 
   get terminalType(): string {
@@ -92,6 +100,16 @@ export class TelnetNegotiator extends EventEmitter {
 
   get isNegotiated(): boolean {
     return this._negotiated;
+  }
+
+  /** Whether TN3270E mode was negotiated. */
+  get isTN3270E(): boolean {
+    return this._tn3270e?.isTN3270E ?? false;
+  }
+
+  /** The TN3270E negotiator (if active). */
+  get tn3270eNegotiator(): TN3270ENegotiator | null {
+    return this._tn3270e;
   }
 
   /** Process incoming bytes from the socket. */
@@ -191,6 +209,15 @@ export class TelnetNegotiator extends EventEmitter {
           if (!state.local) {
             state.local = true;
             this.sendCommand(TelnetCommand.WILL, option);
+
+            // TN3270E: after WILL, initiate device-type negotiation
+            if (option === TelnetOption.TN3270E) {
+              this._tn3270e = new TN3270ENegotiator(
+                this._terminalType,
+                this._luName,
+              );
+              this.emit('send', this._tn3270e.buildDeviceTypeRequest());
+            }
           }
         } else {
           this.sendCommand(TelnetCommand.WONT, option);
@@ -228,9 +255,8 @@ export class TelnetNegotiator extends EventEmitter {
     return (
       option === TelnetOption.BINARY ||
       option === TelnetOption.TERMINAL_TYPE ||
-      option === TelnetOption.EOR
-      // TN3270E negotiation is not yet fully implemented — refuse for now
-      // so the host falls back to basic TN3270 mode.
+      option === TelnetOption.EOR ||
+      option === TelnetOption.TN3270E
     );
   }
 
@@ -250,8 +276,26 @@ export class TelnetNegotiator extends EventEmitter {
 
     if (option === TelnetOption.TERMINAL_TYPE) {
       this.handleTerminalTypeSubNeg();
+    } else if (option === TelnetOption.TN3270E && this._tn3270e) {
+      this.handleTN3270ESubNeg();
     }
-    // TN3270E sub-negotiation handled in tn3270e.ts
+  }
+
+  /** Handle TN3270E sub-negotiation. */
+  private handleTN3270ESubNeg(): void {
+    const response = this._tn3270e!.processSubNeg(this._subNegBuffer);
+    if (response) {
+      this.emit('send', response);
+    }
+
+    // Check if TN3270E negotiation completed or failed
+    if (this._tn3270e!.state === TN3270ENegState.Complete) {
+      this.emit('tn3270eNegotiated');
+      this.checkNegotiationComplete();
+    } else if (this._tn3270e!.state === TN3270ENegState.Failed) {
+      // TN3270E failed — host should fall back to basic TN3270
+      this._tn3270e = null;
+    }
   }
 
   /** Handle TERMINAL-TYPE sub-negotiation. */
@@ -301,8 +345,16 @@ export class TelnetNegotiator extends EventEmitter {
 
     const binary = this.getOption(TelnetOption.BINARY);
     const eor = this.getOption(TelnetOption.EOR);
-    const tt = this.getOption(TelnetOption.TERMINAL_TYPE);
 
+    // TN3270E mode: complete when TN3270E sub-negotiation finishes
+    if (this._tn3270e?.isTN3270E && binary.local && eor.local) {
+      this._negotiated = true;
+      this.emit('negotiated');
+      return;
+    }
+
+    // Basic TN3270 mode: complete when BINARY, EOR, and TERMINAL-TYPE are agreed
+    const tt = this.getOption(TelnetOption.TERMINAL_TYPE);
     if (binary.local && eor.local && tt.local) {
       this._negotiated = true;
       this.emit('negotiated');

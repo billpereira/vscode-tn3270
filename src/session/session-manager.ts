@@ -18,6 +18,13 @@ import { buildThemeMessage } from '../webview/theme';
 import { mapKeyPress } from '../webview/keyboard-mapper';
 import { TelnetNegotiator } from '../protocol/telnet';
 import { processRecord, DatastreamAction, WCC } from '../protocol/datastream';
+import {
+  TN3270EDataType,
+  TN3270ERequestFlag,
+  TN3270EResponseFlag,
+  stripHeader,
+  buildHeader,
+} from '../protocol/tn3270e';
 import { getCodePage } from '../protocol/ebcdic';
 import type { WebviewToHostMessage, KeyPressMessage } from '../webview/messages';
 
@@ -48,7 +55,7 @@ export class Session {
     this.screen = new ScreenBuffer(model);
     this.keyboard = new KeyboardHandler(this.screen);
     this.connection = new Connection();
-    this.telnet = new TelnetNegotiator(profile.model);
+    this.telnet = new TelnetNegotiator(profile.model, profile.luName || '');
 
     this._panel = new PanelManager(
       extensionUri,
@@ -150,10 +157,22 @@ export class Session {
 
     // Keyboard → send response to host
     this.keyboard.on('send', (data: Buffer) => {
+      let payload = data;
+
+      // TN3270E mode: prepend 5-byte header
+      if (this.telnet.isTN3270E) {
+        const header = buildHeader({
+          dataType: TN3270EDataType.DATA_3270,
+          requestFlag: TN3270ERequestFlag.NO_RESPONSE,
+          responseFlag: TN3270EResponseFlag.NO_RESPONSE,
+          seqNumber: 0,
+        });
+        payload = Buffer.concat([header, data]);
+      }
+
       // Wrap in IAC EOR for Telnet
       const eor = Buffer.from([0xFF, 0xEF]);
-      const payload = Buffer.concat([data, eor]);
-      this.connection.send(payload);
+      this.connection.send(Buffer.concat([payload, eor]));
     });
 
     this.keyboard.on('lockChange', (locked: boolean, reason: string) => {
@@ -181,7 +200,21 @@ export class Session {
   // ── Host record processing ──────────────────────────────────
 
   private processHostRecord(record: Buffer): void {
-    const result = processRecord(record, this.screen);
+    let payload = record;
+
+    // TN3270E mode: strip the 5-byte header
+    if (this.telnet.isTN3270E) {
+      const parsed = stripHeader(record);
+      if (!parsed) return;
+
+      // Only process 3270 data records
+      if (parsed.header.dataType !== TN3270EDataType.DATA_3270) {
+        return;
+      }
+      payload = parsed.payload;
+    }
+
+    const result = processRecord(payload, this.screen);
 
     for (const action of result.actions) {
       switch (action) {

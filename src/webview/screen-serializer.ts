@@ -3,6 +3,7 @@
  */
 
 import { ScreenBuffer } from '../emulator/screen-buffer';
+import { isIntensified, isNonDisplay, Color } from '../emulator/field';
 import { decodeChar } from '../protocol/ebcdic';
 import type { CodePage } from '../protocol/ebcdic';
 import type { CellData, ScreenUpdateMessage } from './messages';
@@ -27,10 +28,26 @@ export function serializeScreen(
         : decodeChar(cell.char);
     }
 
+    // Determine effective extended attributes.
+    // Basic field attribute display bits affect color when no explicit color is set.
+    const extended = { ...cell.extended };
+    if (!isFieldAttr) {
+      const field = screen.getFieldAt(i);
+      if (field) {
+        if (isNonDisplay(field.attribute)) {
+          // Hidden fields: set char to empty so nothing renders
+          char = '';
+        } else if (isIntensified(field.attribute) && extended.foreground === Color.DEFAULT) {
+          // Intensified fields render as white when no explicit color
+          extended.foreground = Color.WHITE;
+        }
+      }
+    }
+
     cells[i] = {
       char,
       isFieldAttribute: isFieldAttr,
-      extended: { ...cell.extended },
+      extended,
     };
   }
 

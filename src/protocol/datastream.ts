@@ -9,8 +9,9 @@
  */
 
 import { ScreenBuffer } from '../emulator/screen-buffer';
-import { FieldAttr } from '../emulator/field';
-import { isOrder, processOrder, encodeAddress } from './orders';
+import { FieldAttr, type ExtendedAttributes, Color, Highlight } from '../emulator/field';
+import { isOrder, processOrder, encodeAddress, OrderCode } from './orders';
+import { ExtendedAttrType } from '../emulator/field';
 
 // ── Command codes ───────────────────────────────────────────────────
 
@@ -164,17 +165,51 @@ function processWrite(record: Buffer, screen: ScreenBuffer, result: DatastreamRe
     result.actions.push(DatastreamAction.Alarm);
   }
 
+  // Current SA (Set Attribute) state — persists across characters until
+  // reset by another SA, SF, or SFE order.
+  const currentSA: ExtendedAttributes = {
+    foreground: Color.DEFAULT,
+    background: Color.DEFAULT,
+    highlight: Highlight.DEFAULT,
+  };
+
   // Process orders and data starting at byte 2
   let offset = 2;
   while (offset < record.length) {
     const byte = record[offset];
 
     if (isOrder(byte)) {
+      // SA order: update the current SA state for subsequent characters
+      if (byte === OrderCode.SA && offset + 2 < record.length) {
+        const type = record[offset + 1];
+        const value = record[offset + 2];
+        if (type === ExtendedAttrType.FOREGROUND_COLOR) currentSA.foreground = value;
+        else if (type === ExtendedAttrType.BACKGROUND_COLOR) currentSA.background = value;
+        else if (type === ExtendedAttrType.HIGHLIGHT) currentSA.highlight = value;
+      }
+      // SF/SFE reset SA state — new field starts fresh
+      if (byte === OrderCode.SF || byte === OrderCode.SFE) {
+        currentSA.foreground = Color.DEFAULT;
+        currentSA.background = Color.DEFAULT;
+        currentSA.highlight = Highlight.DEFAULT;
+      }
+
       const consumed = processOrder(record, offset, screen);
       offset += consumed;
     } else {
       // Regular character data — write at cursor position
-      screen.setChar(screen.cursor.position, byte);
+      const pos = screen.cursor.position;
+      screen.setChar(pos, byte);
+
+      // Apply SA colors if active, otherwise inherit field colors
+      if (currentSA.foreground !== Color.DEFAULT ||
+          currentSA.background !== Color.DEFAULT ||
+          currentSA.highlight !== Highlight.DEFAULT) {
+        screen.setCellExtended(pos, currentSA);
+      } else {
+        screen.applyFieldColors(pos);
+      }
+
       screen.cursor.advance();
       offset++;
     }

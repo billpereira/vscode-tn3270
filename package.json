@@ -45,10 +45,6 @@
     "cics",
     "tso"
   ],
-  "activationEvents": [
-    "onCommand:vscode-tn3270.openSession",
-    "onCommand:vscode-tn3270.manageProfiles"
-  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
