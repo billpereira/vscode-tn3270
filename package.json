@@ -3,7 +3,7 @@
   "displayName": "TN3270 Terminal Emulator",
   "description": "A native TN3270/TN3270E terminal emulator for Visual Studio Code — connect to IBM z/OS, CICS, TSO, and ISPF without leaving your editor.",
   "version": "0.0.1",
-  "publisher": "billpereira",
+  "publisher": "zbillpereira",
   "license": "MIT",
   "icon": "media/icons/icon.png",
   "repository": {
