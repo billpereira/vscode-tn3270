@@ -216,11 +216,22 @@ export class Session {
         return;
       }
 
+      if (parsed.header.dataType === TN3270EDataType.DATA_BIND) {
+        // BIND: session (re)binding — unlock keyboard for incoming screen
+        this.keyboard.unlock();
+        return;
+      }
+
+      if (parsed.header.dataType === TN3270EDataType.DATA_UNBIND) {
+        // UNBIND: session unbinding — will be followed by BIND
+        return;
+      }
+
       if (parsed.header.dataType === TN3270EDataType.DATA_3270) {
         this._sscpLuMode = false;
         payload = parsed.payload;
       } else {
-        // Other types (SCS, BIND, UNBIND, NVT, etc.) — ignore for now
+        // Other types (SCS, NVT, RESPONSE, etc.) — ignore for now
         return;
       }
     }
